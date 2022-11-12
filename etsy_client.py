@@ -2,6 +2,7 @@ import socketserver
 import urllib.parse
 import http.server
 import webbrowser
+import threading
 import requests
 import logging
 import hashlib
@@ -18,7 +19,8 @@ import os
 
 AUTO_REFRESH_TOKEN = True
 AUTO_CLOSE = True
-VERBOSE = False
+VERBOSE = True
+HOST = "0.0.0.0"
 PORT = 5000
 
 API_TOKEN = "YOUR_API_TOKEN"
@@ -30,7 +32,7 @@ class EtsyOAuth:
 	             auto_close_browser=True, auto_refresh_token=True, verbose=True):
 		# Construct and initialize the variables needed for the OAuth flow
 		self.auto_close_browser = auto_close_browser
-		self.auto_refresh = auto_refresh_token
+		self._auto_refresh_token = auto_refresh_token
 		self.api_token = api_token
 		self.host = host
 		self.port = port
@@ -38,13 +40,13 @@ class EtsyOAuth:
 		self.verbose = verbose
 
 		# Generate attributes needed for the OAuth flow
-		self.scheduler = sched.scheduler(time.time, time.sleep)
 		self.contexts_urlencoded = "%20".join([context + "_r" if not context.endswith("_r") else context for context in contexts])
 		self.base_url = f"http://{self.host}:{self.port}"
 		self.code_verifier = self.base64_url_encode(os.urandom(32))
 		self.state = "".join(random.choice(string.ascii_letters + string.digits) for _ in range(7 - 1))
 		self.code_challenge = self.base64_url_encode(hashlib.sha256(self.code_verifier.encode("utf-8")).digest())
 		self.redirect_uri = self.base_url + "/callback"
+		self.refresh_token_timer = None
 
 	@classmethod
 	def base64_url_encode(self, inp):
@@ -53,6 +55,19 @@ class EtsyOAuth:
 			.replace("+", "-") \
 			.replace("/", "_") \
 			.replace("=", "")
+
+
+	@property
+	def auto_refresh_token(self):
+		return self._auto_refresh_token
+
+	@auto_refresh_token.setter
+	def auto_refresh_token(self, value):
+		if not value and self.refresh_token_timer is not None:
+			if self.verbose: print("Cancelling refresh token timer")
+			self.refresh_token_timer.cancel()
+		self.refresh_token_timer = None
+		self._auto_refresh_token = value
 
 	def open_oauth_request(self):
 		auth_url = f"https://www.etsy.com/oauth/connect" \
@@ -117,6 +132,15 @@ class EtsyOAuth:
 		self.refresh_token = tokens["refresh_token"]
 		self.expires_in = tokens["expires_in"]
 
+	def stop_auto_refreshing_token(self):
+		self.auto_refresh_token = False
+
+	def start_auto_refreshing_token(self):
+		if self.refresh_token_timer: self.refresh_token_timer.cancel()
+		self.refresh_token_timer = threading.Timer(int(self.expires_in), function=self.get_refresh_token)
+		self.refresh_token_timer.start()
+		if self.verbose: print("New timer started with interval", self.refresh_token_timer.interval)
+
 	def get_refresh_token(self):
 		res = requests.post("https://api.etsy.com/v3/public/oauth/token",
 		    headers={"Content-Type": "application/json"}, json={
@@ -124,7 +148,6 @@ class EtsyOAuth:
 				"client_id": self.api_token,
 				"refresh_token": self.refresh_token
 			})
-
 		tokens = res.json()
 
 		self.access_token = tokens["access_token"]
@@ -132,15 +155,12 @@ class EtsyOAuth:
 		self.expires_in = tokens["expires_in"]
 
 		if self.verbose: print("Succesfully refreshed token", self.access_token, self.refresh_token, self.expires_in)
-
-		if self.auto_refresh:
-			self.scheduler.enter(int(self.expires_in), 1, self.get_refresh_token, ())
-			self.scheduler.run()
-			if self.verbose: print("Scheduler started")
+		if self.auto_refresh_token:
+			self.start_auto_refreshing_token()
 
 
 if __name__ == "__main__":
-	client = EtsyOAuth(API_TOKEN, "localhost", PORT, contexts, AUTO_CLOSE, AUTO_REFRESH_TOKEN, VERBOSE)
+	client = EtsyOAuth(API_TOKEN, HOST, PORT, contexts, AUTO_CLOSE, AUTO_REFRESH_TOKEN, VERBOSE)
 
 	print("Getting access token")
 	client.get_access_token()
@@ -148,4 +168,9 @@ if __name__ == "__main__":
 	print("Getting refresh token")
 	client.get_refresh_token()
 
-	print("Going on")
+	print("Refreshing is threaded and non blockingly running in the background")
+
+	input("Press enter to stop refreshing")
+	client.auto_refresh_token = False
+
+	print("Stopped refreshing")
