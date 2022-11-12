@@ -77,10 +77,11 @@ class EtsyOAuth:
 
 	def run_oauth_server(self):
 		parent_context = self
+		tokens = {}
 		class OAuthServerHandler(http.server.BaseHTTPRequestHandler):
 			def log_message(self, format, *args): pass
 			def do_GET(self):
-				global tokens
+				nonlocal tokens
 				self.send_response(200)
 				self.send_header("Content-type", "text/html")
 				self.end_headers()
@@ -115,8 +116,23 @@ class EtsyOAuth:
 		except OSError:pass # For some strange reason something still tries to write to the socket after closing server
 		return tokens
 
+	def get_access_token(self):
+		self.open_oauth_request()
+		tokens = self.run_oauth_server()
+		self.access_token = tokens["access_token"]
+		self.refresh_token = tokens["refresh_token"]
+		self.expires_in = tokens["expires_in"]
+
+
+	def keep_token_updated(self):
+		pass
+
+	def refresh_token(self):
+		pass
+
+
+
 if __name__ == "__main__":
 	client = EtsyOAuth(API_TOKEN, "localhost", PORT, contexts, AUTO_CLOSE, VERBOSE)
-	client.open_oauth_request()
-	tokens = client.run_oauth_server()
-	print(tokens)
+	client.get_access_token()
+	print(client.access_token)
