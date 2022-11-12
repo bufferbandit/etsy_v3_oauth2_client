@@ -17,27 +17,29 @@ import time
 import json
 import os
 
-AUTO_REFRESH_TOKEN = True
+AUTO_REFRESH_TOKEN = False
 AUTO_CLOSE = True
 VERBOSE = True
-HOST = "0.0.0.0"
+HOST = "localhost"
 PORT = 5000
 
 API_TOKEN = "YOUR_API_TOKEN"
 contexts = ["email_r", "shops_r", "profile_r", "transactions_r"]
 
 
-class EtsyOAuth:
+class EtsyOAuth2Client:
 	def __init__(self, api_token, host, port, contexts,
-	             auto_close_browser=True, auto_refresh_token=True, verbose=True):
+	             auto_close_browser=True, auto_refresh_token=False, verbose=True):
 		# Construct and initialize the variables needed for the OAuth flow
 		self.auto_close_browser = auto_close_browser
-		self._auto_refresh_token = auto_refresh_token
 		self.api_token = api_token
 		self.host = host
 		self.port = port
 		self.contexts = contexts
 		self.verbose = verbose
+
+		self.refresh_token_timer = None
+		self.auto_refresh_token = auto_refresh_token
 
 		# Generate attributes needed for the OAuth flow
 		self.contexts_urlencoded = "%20".join([context + "_r" if not context.endswith("_r") else context for context in contexts])
@@ -46,7 +48,6 @@ class EtsyOAuth:
 		self.state = "".join(random.choice(string.ascii_letters + string.digits) for _ in range(7 - 1))
 		self.code_challenge = self.base64_url_encode(hashlib.sha256(self.code_verifier.encode("utf-8")).digest())
 		self.redirect_uri = self.base_url + "/callback"
-		self.refresh_token_timer = None
 
 	@classmethod
 	def base64_url_encode(self, inp):
@@ -160,7 +161,8 @@ class EtsyOAuth:
 
 
 if __name__ == "__main__":
-	client = EtsyOAuth(API_TOKEN, HOST, PORT, contexts, AUTO_CLOSE, AUTO_REFRESH_TOKEN, VERBOSE)
+	print(AUTO_REFRESH_TOKEN)
+	client = EtsyOAuth2Client(API_TOKEN, HOST, PORT, contexts, AUTO_CLOSE, AUTO_REFRESH_TOKEN, VERBOSE)
 
 	print("Getting access token")
 	client.get_access_token()
@@ -169,8 +171,11 @@ if __name__ == "__main__":
 	client.get_refresh_token()
 
 	print("Refreshing is threaded and non blockingly running in the background")
+	client.start_auto_refreshing_token()
+
+	input()
 
 	input("Press enter to stop refreshing")
-	client.auto_refresh_token = False
+	client.start_auto_refreshing_token()
 
 	print("Stopped refreshing")
