@@ -32,7 +32,8 @@ API_TOKEN = "API_TOKEN"
 class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 	def __init__(self, api_token, host="0.0.0.0", port=5000,
 	             auto_close_browser=True, auto_refresh_token=False,
-	             verbose=True, auto_start_auth=True, scopes=None):
+	             verbose=True, auto_start_auth=True, scopes=None,
+	             access_token=None, refresh_token=None, expiry=None):
 
 
 		# Construct and initialize the variables needed for the OAuth flow
@@ -158,10 +159,20 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 		return tokens
 
 
+	# Add token as an alias for access_token (for parrent class)
+	@property
+	def token(self):
+		return self.access_token
+
+	@token.setter
+	def token(self, value):
+		# self.access_token = value
+		pass
+
 	def get_access_token(self):
 		self.open_oauth_request()
 		tokens = self.receive_oauth_callback()
-		self.access_token = self.token = tokens["access_token"]
+		self.access_token = tokens["access_token"]
 		self.refresh_token = tokens["refresh_token"]
 		self.expires_in = tokens["expires_in"]
 		self.expiry = datetime.datetime.utcnow() + datetime.timedelta(seconds=self.expires_in)
@@ -186,7 +197,7 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 			})
 		tokens = res.json()
 
-		self.access_token = self.token = tokens["access_token"]
+		self.access_token = tokens["access_token"]
 		self.refresh_token = tokens["refresh_token"]
 		self.expires_in = tokens["expires_in"]
 		self.expiry = datetime.datetime.utcnow() + datetime.timedelta(seconds=self.expires_in)
@@ -204,3 +215,5 @@ if __name__ == "__main__":
 		auto_refresh_token=AUTO_REFRESH_TOKEN,
 		verbose=VERBOSE, auto_start_auth=AUTO_START_AUTH)
 	print(client.ping())
+	client.stop_auto_refreshing_token()
+
