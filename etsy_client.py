@@ -1,9 +1,11 @@
-import socketserver
+import etsyv3.etsy_api
 import urllib.parse
+import socketserver
 import http.server
 import webbrowser
 import threading
 import requests
+import datetime
 import logging
 import hashlib
 import urllib
@@ -17,37 +19,67 @@ import time
 import json
 import os
 
-AUTO_REFRESH_TOKEN = False
-AUTO_CLOSE = True
+AUTO_CLOSE_BROWSER = True
+AUTO_REFRESH_TOKEN = True
+AUTO_START_AUTH = True
 VERBOSE = True
 HOST = "localhost"
 PORT = 5000
 
-API_TOKEN = "YOUR_API_TOKEN"
-contexts = ["email_r", "shops_r", "profile_r", "transactions_r"]
+API_TOKEN = "API_TOKEN"
 
 
-class EtsyOAuth2Client:
-	def __init__(self, api_token, host, port, contexts,
-	             auto_close_browser=True, auto_refresh_token=False, verbose=True):
+class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
+	def __init__(self, api_token, host="0.0.0.0", port=5000,
+	             auto_close_browser=True, auto_refresh_token=False,
+	             verbose=True, auto_start_auth=True, scopes=None):
+
+
 		# Construct and initialize the variables needed for the OAuth flow
+		if scopes is None:
+			scopes = ["address_r", "address_w", "billing_r", "cart_r", "cart_w",
+			          "email_r", "favorites_r", "favorites_w", "feedback_r",
+			          "listings_d", "listings_r", "listings_w", "profile_r",
+			          "profile_w", "recommend_r", "recommend_w", "shops_r",
+			          "shops_w", "transactions_r", "transactions_w"]
 		self.auto_close_browser = auto_close_browser
 		self.api_token = api_token
 		self.host = host
 		self.port = port
-		self.contexts = contexts
-		self.verbose = verbose
+		self.scopes = scopes
 
 		self.refresh_token_timer = None
 		self.auto_refresh_token = auto_refresh_token
 
 		# Generate attributes needed for the OAuth flow
-		self.contexts_urlencoded = "%20".join([context + "_r" if not context.endswith("_r") else context for context in contexts])
+		self.scopes_urlencoded = "%20".join(self.scopes)
 		self.base_url = f"http://{self.host}:{self.port}"
 		self.code_verifier = self.base64_url_encode(os.urandom(32))
 		self.state = "".join(random.choice(string.ascii_letters + string.digits) for _ in range(7 - 1))
 		self.code_challenge = self.base64_url_encode(hashlib.sha256(self.code_verifier.encode("utf-8")).digest())
 		self.redirect_uri = self.base_url + "/callback"
+
+		self.auto_start_auth = auto_start_auth
+		self.verbose = verbose
+
+		if self.auto_start_auth:
+			if self.verbose: print("Getting access token")
+			self.get_access_token()
+
+			if self.verbose: print("Getting refresh token")
+			self.get_refresh_token()
+
+		# Initialize base class variables
+		super().__init__(
+			keystring=api_token,
+			token=self.access_token,
+			refresh_token=self.refresh_token,
+			expiry=self.expiry,
+			refresh_save=None)
+
+
+	# Disable builtin refresh token method
+	def refresh(self):pass
 
 	@classmethod
 	def base64_url_encode(self, inp):
@@ -74,7 +106,7 @@ class EtsyOAuth2Client:
 		auth_url = f"https://www.etsy.com/oauth/connect" \
 		           f"?response_type=code" \
 		           f"&redirect_uri={self.redirect_uri}" \
-		           f"&scope={self.contexts_urlencoded}" \
+		           f"&scope={self.scopes_urlencoded}" \
 		           f"&client_id={self.api_token}" \
 		           f"&state={self.state}" \
 		           f"&code_challenge={self.code_challenge}" \
@@ -129,9 +161,12 @@ class EtsyOAuth2Client:
 	def get_access_token(self):
 		self.open_oauth_request()
 		tokens = self.receive_oauth_callback()
-		self.access_token = tokens["access_token"]
+		self.access_token = self.token = tokens["access_token"]
 		self.refresh_token = tokens["refresh_token"]
 		self.expires_in = tokens["expires_in"]
+		self.expiry = datetime.datetime.utcnow() + datetime.timedelta(seconds=self.expires_in)
+
+		print("Expiry: " + str(self.expiry))
 
 	def stop_auto_refreshing_token(self):
 		self.auto_refresh_token = False
@@ -151,9 +186,11 @@ class EtsyOAuth2Client:
 			})
 		tokens = res.json()
 
-		self.access_token = tokens["access_token"]
+		self.access_token = self.token = tokens["access_token"]
 		self.refresh_token = tokens["refresh_token"]
 		self.expires_in = tokens["expires_in"]
+		self.expiry = datetime.datetime.utcnow() + datetime.timedelta(seconds=self.expires_in)
+
 
 		if self.verbose: print("Succesfully refreshed token", self.access_token, self.refresh_token, self.expires_in)
 		if self.auto_refresh_token:
@@ -161,21 +198,9 @@ class EtsyOAuth2Client:
 
 
 if __name__ == "__main__":
-	print(AUTO_REFRESH_TOKEN)
-	client = EtsyOAuth2Client(API_TOKEN, HOST, PORT, contexts, AUTO_CLOSE, AUTO_REFRESH_TOKEN, VERBOSE)
-
-	print("Getting access token")
-	client.get_access_token()
-
-	print("Getting refresh token")
-	client.get_refresh_token()
-
-	print("Refreshing is threaded and non blockingly running in the background")
-	client.start_auto_refreshing_token()
-
-	input()
-
-	input("Press enter to stop refreshing")
-	client.start_auto_refreshing_token()
-
-	print("Stopped refreshing")
+	client = EtsyOAuth2Client(
+		api_token=API_TOKEN, host=HOST, port=PORT,
+		auto_close_browser=AUTO_CLOSE_BROWSER,
+		auto_refresh_token=AUTO_REFRESH_TOKEN,
+		verbose=VERBOSE, auto_start_auth=AUTO_START_AUTH)
+	print(client.ping())
