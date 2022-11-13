@@ -91,7 +91,7 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 				if uri := re.compile(r"(uri\s=\s).\"(.*?)\"").findall(stripped):
 					uri_val = uri[0][1].replace(
 						"{ETSY_API_BASEURL}", etsyv3.etsy_api.ETSY_API_BASEURL)
-					yield method_name, uri_val
+					yield method_name, uri_val, method, list(inspect.signature(method).parameters)
 
 	# Disable builtin refresh token method
 	def refresh(self):pass
@@ -179,7 +179,7 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 	def token(self):
 		return self.access_token
 
-	@token.setter
+	@token.setter # needed to use a getter
 	def token(self, value):
 		# self.access_token = value
 		pass
@@ -234,5 +234,5 @@ if __name__ == "__main__":
 	client.stop_auto_refreshing_token()
 
 	routes = list(client.get_api_routes())
-	print(routes)
+	pprint.pprint(routes)
 
