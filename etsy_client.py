@@ -18,15 +18,16 @@ import sched
 import time
 import json
 import os
+import re
 
 AUTO_CLOSE_BROWSER = True
 AUTO_REFRESH_TOKEN = True
 AUTO_START_AUTH = True
-VERBOSE = True
+VERBOSE = False
 HOST = "localhost"
 PORT = 5000
 
-API_TOKEN = "API_TOKEN"
+API_TOKEN = "YOUR_API_TOKEN"
 
 
 class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
@@ -34,7 +35,6 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 	             auto_close_browser=True, auto_refresh_token=False,
 	             verbose=True, auto_start_auth=True, scopes=None,
 	             access_token=None, refresh_token=None, expiry=None):
-
 
 		# Construct and initialize the variables needed for the OAuth flow
 		if scopes is None:
@@ -78,6 +78,20 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 			expiry=self.expiry,
 			refresh_save=None)
 
+	def get_api_routes(self):
+		if self.verbose: print("Getting API routes")
+		import inspect, typing
+		for mtd in inspect.getmembers(self, predicate=inspect.ismethod):
+			method_name, method = mtd
+			# If function contains URI it's probably an API route
+			if {"ETSY_API_BASEURL", "_issue_request"}\
+					.issubset(set(method.__code__.co_names)) and not method_name in ["refresh","_issue_request"]:
+				sc = inspect.getsource(method)
+				stripped = sc.replace("\n","").strip()
+				if uri := re.compile(r"(uri\s=\s).\"(.*?)\"").findall(stripped):
+					uri_val = uri[0][1].replace(
+						"{ETSY_API_BASEURL}", etsyv3.etsy_api.ETSY_API_BASEURL)
+					yield method_name, uri_val
 
 	# Disable builtin refresh token method
 	def refresh(self):pass
@@ -132,6 +146,7 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 				parent_context.code = query_parameters["code"][0]
 				parent_context.state = query_parameters["state"][0]
 
+				# These can't make use of the requests.session object because it's not initialized yet
 				res = requests.post("https://api.etsy.com/v3/public/oauth/token",
 				        headers={"Content-Type": "application/json"}, json={
 						"grant_type": "authorization_code",
@@ -189,6 +204,7 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 		if self.verbose: print("New timer started with interval", self.refresh_token_timer.interval)
 
 	def get_refresh_token(self):
+		# These can't make use of the requests.session object because it's not initialized yet
 		res = requests.post("https://api.etsy.com/v3/public/oauth/token",
 		    headers={"Content-Type": "application/json"}, json={
 				"grant_type": "refresh_token",
@@ -216,4 +232,7 @@ if __name__ == "__main__":
 		verbose=VERBOSE, auto_start_auth=AUTO_START_AUTH)
 	print(client.ping())
 	client.stop_auto_refreshing_token()
+
+	routes = list(client.get_api_routes())
+	print(routes)
 
