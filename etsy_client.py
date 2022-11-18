@@ -27,7 +27,7 @@ VERBOSE = False
 HOST = "localhost"
 PORT = 5000
 
-API_TOKEN = "YOUR_API_TOKEN"
+API_TOKEN = "ADD YOUR API TOKEN"
 
 
 class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
@@ -91,7 +91,12 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 				if uri := re.compile(r"(uri\s=\s).\"(.*?)\"").findall(stripped):
 					uri_val = uri[0][1].replace(
 						"{ETSY_API_BASEURL}", etsyv3.etsy_api.ETSY_API_BASEURL)
-					yield method_name, uri_val, method, list(inspect.signature(method).parameters)
+					# Regex that checks what word is behind Method.
+
+					verb_pattern = re.compile(r"(Method\.)(\w+)").findall(stripped)
+					try:verb = verb_pattern[0][1] if verb_pattern else "GET"
+					except IndexError:verb = "GET"
+					yield method_name, uri_val, method, list(inspect.signature(method).parameters), verb
 
 	# Disable builtin refresh token method
 	def refresh(self):pass
@@ -235,4 +240,3 @@ if __name__ == "__main__":
 
 	routes = list(client.get_api_routes())
 	pprint.pprint(routes)
-
