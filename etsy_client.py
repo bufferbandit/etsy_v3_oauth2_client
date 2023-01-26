@@ -6,19 +6,23 @@ import webbrowser
 import threading
 import requests
 import datetime
+import inspect
 import logging
 import hashlib
 import urllib
 import pprint
 import base64
 import random
+import typing
 import signal
 import string
+import types
 import sched
 import time
 import json
 import os
 import re
+
 
 AUTO_CLOSE_BROWSER = True
 AUTO_REFRESH_TOKEN = True
@@ -27,14 +31,19 @@ VERBOSE = False
 HOST = "localhost"
 PORT = 5000
 
-API_TOKEN = "ADD YOUR API TOKEN"
+API_TOKEN = input("ADD YOUR API TOKEN ")
 
 
 class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 	def __init__(self, api_token, host="0.0.0.0", port=5000,
 	             auto_close_browser=True, auto_refresh_token=False,
 	             verbose=True, auto_start_auth=True, scopes=None,
-	             access_token=None, refresh_token=None, expiry=None):
+	             access_token=None, refresh_token=None, expiry=None,
+	             reference_file_path="./api_reference.json"):
+
+		self.api_reference_json_file = open(
+					reference_file_path, encoding="utf-8")
+		self.api_reference_json = json.load(self.api_reference_json_file)
 
 		# Construct and initialize the variables needed for the OAuth flow
 		if scopes is None:
@@ -70,6 +79,13 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 			if self.verbose: print("Getting refresh token")
 			self.get_refresh_token()
 
+		# Initialize with wrong data, call constructor later again to update
+		if not self.auto_start_auth:
+			self.access_token = "None.None.None"
+			self.refresh_token = "None.None.None"
+			# self.expiry = None
+			self.expiry = datetime.datetime.utcnow() + datetime.timedelta(microseconds=1)
+
 		# Initialize base class variables
 		super().__init__(
 			keystring=api_token,
@@ -78,27 +94,64 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 			expiry=self.expiry,
 			refresh_save=None)
 
+	# def __late__init(self, access_token, refresh_token, expiry):
+	# 	self.access_token = access_token
+	# 	self.refresh_token = refresh_token
+	# 	self.expiry = expiry
+	# 	# Initialize base class variables
+	# 	super().__init__(
+	# 		keystring=self.api_token,
+	# 		token=self.access_token,
+	# 		refresh_token=self.refresh_token,
+	# 		expiry=self.expiry,
+	# 		refresh_save=None)
+
+	def reference_opperation_to_function(self, method_obj, func="pass #", prefix="__from_api_reference_", **kwargs):
+		if isinstance(func, (types.FunctionType, types.MethodType)): func = func.__name__
+		print(func)
+		# function string
+		function_str = "def {prefix}{operationId}({args_str}):{func}(**locals())"
+		# generate the function arguments signature
+		type_translation = {
+			"integer": "int",
+			"float": "float",
+			"boolean": "bool",
+			"string": "str",
+			"array": "list",
+			"epoch": "datetime.datetime",
+		}
+		# convert all parameters to a list
+		arguments_list = [parameter["name"] + ":" + type_translation.get(parameter["schema"]["type"], "typing.Any") +
+		                  ("=None" if not parameter["required"] else "") for parameter in
+		                  method_obj.get("parameters", [])]
+		# add function kwargs to the arguments list as well
+		arguments_list.extend(
+			[f"{key}='{value}'" if isinstance(value, str) else f"{key}={value}" for key, value in kwargs.items()])
+
+		# convert the list to a string separated by commas
+		arguments_string = arguments_string if (arguments_string := ",".join(arguments_list)) != "," else ""
+		# eval and fill in the blanks
+		exec(function_str.format(
+			operationId=method_obj["operationId"],
+			args_str=arguments_string,
+			prefix=prefix,
+			func=func))
+		function_name = prefix + method_obj["operationId"]
+		function = locals()[function_name]
+		return function, function_name
+
 	def get_api_routes(self):
-		if self.verbose: print("Getting API routes")
-		import inspect, typing
-		for mtd in inspect.getmembers(self, predicate=inspect.ismethod):
-			method_name, method = mtd
-			# If function contains URI it's probably an API route
-			if {"ETSY_API_BASEURL", "_issue_request"}\
-					.issubset(set(method.__code__.co_names)) and not method_name in ["refresh","_issue_request"]:
-				sc = inspect.getsource(method)
-				stripped = sc.replace("\n","").strip()
-				if uri := re.compile(r"(uri\s=\s).\"(.*?)\"").findall(stripped):
-					uri_val = uri[0][1].replace(
-						"{ETSY_API_BASEURL}", etsyv3.etsy_api.ETSY_API_BASEURL)
-					# Regex that checks what word is behind Method.
+		for path, path_obj in self.api_reference_json["paths"].items():
+			for method, method_obj in path_obj.items():
+				function, function_name = self.reference_opperation_to_function(
+						method_obj=method_obj, func=self.make_request, path=path)
+				yield function_name, path, function, list(inspect.signature(function).parameters), method
 
-					verb_pattern = re.compile(r"(Method\.)(\w+)").findall(stripped)
-					try:verb = verb_pattern[0][1] if verb_pattern else "GET"
-					except IndexError:verb = "GET"
-					yield method_name, uri_val, method, list(inspect.signature(method).parameters), verb
+	def make_request(self, *args, **kwargs):
+		path = kwargs["path"]
+		print("Request made..." + path)
 
-	# Disable builtin refresh token method
+	# Disable builtin refresh token method by overriding it
 	def refresh(self):pass
 
 	@classmethod
@@ -197,7 +250,7 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 		self.expires_in = tokens["expires_in"]
 		self.expiry = datetime.datetime.utcnow() + datetime.timedelta(seconds=self.expires_in)
 
-		print("Expiry: " + str(self.expiry))
+		if self.verbose:print("Expiry: " + str(self.expiry))
 
 	def stop_auto_refreshing_token(self):
 		self.auto_refresh_token = False
@@ -234,9 +287,12 @@ if __name__ == "__main__":
 		api_token=API_TOKEN, host=HOST, port=PORT,
 		auto_close_browser=AUTO_CLOSE_BROWSER,
 		auto_refresh_token=AUTO_REFRESH_TOKEN,
-		verbose=VERBOSE, auto_start_auth=AUTO_START_AUTH)
+		verbose=VERBOSE, auto_start_auth=AUTO_START_AUTH,
+		reference_file_path=os.path.join(
+			os.path.dirname(__file__), "./","api_reference.json"))
 	print(client.ping())
 	client.stop_auto_refreshing_token()
 
 	routes = list(client.get_api_routes())
+	client.get_api_routes()
 	pprint.pprint(routes)
