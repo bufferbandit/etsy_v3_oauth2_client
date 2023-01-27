@@ -23,14 +23,8 @@ import json
 import os
 import re
 
-AUTO_CLOSE_BROWSER = True
-AUTO_REFRESH_TOKEN = True
-AUTO_START_AUTH = True
-VERBOSE = True
-HOST = "localhost"
-PORT = 5000
 
-API_TOKEN = input("ADD YOUR API TOKEN ")
+
 
 
 class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
@@ -326,6 +320,13 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 
 
 if __name__ == "__main__":
+	AUTO_CLOSE_BROWSER = True
+	AUTO_REFRESH_TOKEN = True
+	AUTO_START_AUTH = True
+	VERBOSE = True
+	HOST = "localhost"
+	PORT = 5000
+	API_TOKEN = input("ADD YOUR API TOKEN ")
 	client = EtsyOAuth2Client(
 		api_token=API_TOKEN, host=HOST, port=PORT,
 		auto_close_browser=AUTO_CLOSE_BROWSER,
