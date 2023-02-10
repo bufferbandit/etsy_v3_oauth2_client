@@ -87,19 +87,8 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 			expiry=self.expiry,
 			refresh_save=None)
 
-	# def __late__init(self, access_token, refresh_token, expiry):
-	# 	self.access_token = access_token
-	# 	self.refresh_token = refresh_token
-	# 	self.expiry = expiry
-	# 	# Initialize base class variables
-	# 	super().__init__(
-	# 		keystring=self.api_token,
-	# 		token=self.access_token,
-	# 		refresh_token=self.refresh_token,
-	# 		expiry=self.expiry,
-	# 		refresh_save=None)
 
-	def reference_opperation_to_function(self, method_obj, func="None #", prefix="__from_api_reference_", **kwargs):
+	def reference_opperation_to_function(self, method_obj, func="None #", prefix="from_api_reference_", **kwargs):
 		if isinstance(func, (types.FunctionType, types.MethodType)): func = func.__name__
 		# function string
 		function_str = "def {prefix}{operationId}({args_str}{self}):return {func}(**locals())"
