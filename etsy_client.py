@@ -28,7 +28,7 @@ import re
 
 
 class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
-	def __init__(self, api_token, host="0.0.0.0", port=5000,
+	def __init__(self, api_token, host="localhost", port=5000,
 	             auto_close_browser=True, auto_refresh_token=False,
 	             verbose=True, auto_start_auth=True, scopes=None,
 	             access_token=None, refresh_token=None, expiry=None,
