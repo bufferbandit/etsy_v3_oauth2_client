@@ -12,10 +12,6 @@ from selenium.webdriver.support import expected_conditions as EC
 
 import os
 
-"""
-    This class extends the EtsyOAuth2Client and automatically logs in using selenium
-"""
-
 
 def find_element_wait(self, locator, by=By.ID, waiting_time=3, *findElementArgs, **findElementKwargs):
     webdriver_wait = WebDriverWait(self, waiting_time)
@@ -44,13 +40,11 @@ class EtsyOAuth2ClientSelenium(EtsyOAuth2Client):
                          process_callback_url=self.login_to_etsy)
 
     def login_to_etsy(self, url):
-        print("Loging in now")
         self.driver.get(url)
 
         email_input_id = "join_neu_email_field"
         password_input_id = "join_neu_password_field"
         login_button_class = "//button[@value='sign-in' and @type='submit']"
-
 
         # find_element_wait = lambda
         email_input = driver.find_element_wait(email_input_id)
@@ -64,11 +58,10 @@ class EtsyOAuth2ClientSelenium(EtsyOAuth2Client):
 
 
 if __name__ == "__main__":
-    driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()))
+    driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()),
+                               options=webdriver.FirefoxOptions().headless)
     driver.find_element_wait = partial(find_element_wait, driver)
     try:
-
-
 
         AUTO_CLOSE_BROWSER = True
         AUTO_REFRESH_TOKEN = True
@@ -76,9 +69,11 @@ if __name__ == "__main__":
         VERBOSE = True
         HOST = "localhost"
         PORT = 5000
+
         API_TOKEN = input("ADD YOUR API TOKEN ")
         ETSY_EMAIL = input("ADD YOUR EMAIL ")
         ETSY_PASSWORD = input("ADD YOUR PASSWORD ")
+
         client = EtsyOAuth2ClientSelenium(
             api_token=API_TOKEN,
             email=ETSY_EMAIL, password=ETSY_PASSWORD,
