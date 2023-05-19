@@ -32,8 +32,10 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 	             auto_close_browser=True, auto_refresh_token=False,
 	             verbose=True, auto_start_auth=True, scopes=None,
 	             access_token=None, refresh_token=None, expiry=None,
-	             reference_file_path="./api_reference.json"):
+	             reference_file_path="./api_reference.json",
+				 process_callback_url=webbrowser.open):
 
+		self.process_callback_url = process_callback_url
 		self.api_reference_json_file = open(
 			reference_file_path, encoding="utf-8")
 		self.api_reference_json = json.load(self.api_reference_json_file)
@@ -209,7 +211,7 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 		           f"&code_challenge_method=S256"
 
 		if self.verbose: print("Opening browser to authenticate url: " + auth_url)
-		webbrowser.open(auth_url)
+		self.process_callback_url(auth_url)
 
 	def receive_oauth_callback(self):
 		parent_context = self
