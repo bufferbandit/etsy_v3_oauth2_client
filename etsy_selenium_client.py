@@ -47,13 +47,13 @@ class EtsyOAuth2ClientSelenium(EtsyOAuth2Client):
         login_button_class = "//button[@value='sign-in' and @type='submit']"
 
         # find_element_wait = lambda
-        email_input = driver.find_element_wait(email_input_id)
-        password_input = driver.find_element_wait(password_input_id)
+        email_input = self.find_element_wait(email_input_id)
+        password_input = self.find_element_wait(password_input_id)
 
         email_input.send_keys(self.email)
         password_input.send_keys(self.password)
 
-        login_button = driver.find_element_wait(login_button_class, By.XPATH)
+        login_button = self.find_element_wait(login_button_class, By.XPATH)
         login_button.click()
 
 
