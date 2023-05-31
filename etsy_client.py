@@ -36,10 +36,8 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 				 register_reference_function=None,
 				 process_callback_url=webbrowser.open):
 
-		if register_reference_function:
-			self.register_reference_function = register_reference_function
-		else:
-			self.register_reference_function = lambda *args, **kwargs : ...
+
+		self.register_reference_function = register_reference_function
 		self.process_callback_url = process_callback_url
 		self.api_reference_json_file = open(
 			reference_file_path, encoding="utf-8")
@@ -130,7 +128,6 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 		exec(exec_str)
 		function_name = prefix + method_obj["operationId"]
 		function = locals()[function_name]
-		self.register_reference_function(function)
 		return function, function_name
 
 
@@ -138,7 +135,12 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 		for path, path_obj in self.api_reference_json["paths"].items():
 			for method, method_obj in path_obj.items():
 				function, function_name = self.reference_opperation_to_function(
-					method_obj=method_obj, func="self.make_request", path=path, method=method)
+						method_obj=method_obj,
+						func="self.make_request",
+						path=path,
+						method=method)
+				if self.register_reference_function:
+					self.register_reference_function(function)
 				yield function_name, path, function, list(
 					set(inspect.signature(function).parameters) - set(["path", "method", "self"])), method
 
