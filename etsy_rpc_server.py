@@ -17,14 +17,14 @@ from etsy_selenium_client import EtsyOAuth2ClientSelenium
 
 
 class EtsyClientRPCServer(EtsyOAuth2ClientSelenium):
-	def __init__(self, mode="json", rpc_addr=None, rpc_server=None, *args, **kwargs):
+	def __init__(self, rpc_mode="json", rpc_addr=None, rpc_server=None, *args, **kwargs):
 		if rpc_server:
 			self.rpc_server = rpc_server
 		else:
-			if mode == "xml":
+			if rpc_mode == "xml":
 				from xmlrpc.server import SimpleXMLRPCServer
 				self.rpc_server = SimpleXMLRPCServer(rpc_addr)
-			elif mode == "json":
+			elif rpc_mode == "json":
 				from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer
 				self.rpc_server = SimpleJSONRPCServer(rpc_addr)
 
