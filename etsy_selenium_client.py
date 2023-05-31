@@ -24,24 +24,16 @@ class EtsyOAuth2ClientSelenium(EtsyOAuth2Client):
         element = webdriver_wait.until(located)
         return element
 
-    def __init__(self, api_token, email, password, host="localhost", port=5000,
-                 auto_close_browser=True, auto_refresh_token=False,
-                 verbose=True, auto_start_auth=True, scopes=None,
-                 access_token=None, refresh_token=None, expiry=None,
-                 reference_file_path="./api_reference.json",
-                 driver=None):
-
+    def __init__(self, email, password, driver=None,process_callback_url=None, *args, **kwargs):
+        if not process_callback_url:
+            kwargs["process_callback_url"] = self.login_to_etsy
         if not driver:
             driver = webdriver.Chrome(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
         self.driver = driver
-        self.driver.find_element_wait = partial(self.find_element_wait, self.driver)
+        self.driver.find_element_wait = partial(self.find_element_wait, self)
         self.email = email
         self.password = password
-        super().__init__(api_token, host, port, auto_close_browser,
-                         auto_refresh_token, verbose, auto_start_auth,
-                         scopes, access_token, refresh_token, expiry,
-                         reference_file_path,
-                         process_callback_url=self.login_to_etsy)
+        super().__init__(*args, **kwargs)
 
     def login_to_etsy(self, url):
         self.driver.get(url)
