@@ -33,8 +33,11 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 	             verbose=True, auto_start_auth=True, scopes=None,
 	             access_token=None, refresh_token=None, expiry=None,
 	             reference_file_path="./api_reference.json",
+				 register_reference_function=None,
 				 process_callback_url=webbrowser.open):
 
+		if register_reference_function:
+			self.register_reference_function = register_reference_function
 		self.process_callback_url = process_callback_url
 		self.api_reference_json_file = open(
 			reference_file_path, encoding="utf-8")
@@ -125,7 +128,13 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 		exec(exec_str)
 		function_name = prefix + method_obj["operationId"]
 		function = locals()[function_name]
+		self.register_reference_function(function)
 		return function, function_name
+
+	def register_reference_function(self, function):
+		pass
+
+
 
 	def get_api_routes(self):
 		for path, path_obj in self.api_reference_json["paths"].items():
