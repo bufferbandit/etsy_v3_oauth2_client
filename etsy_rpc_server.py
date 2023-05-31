@@ -61,7 +61,7 @@ if __name__ == "__main__":
         ETSY_PASSWORD = input("ADD YOUR PASSWORD ")
 
         client = EtsyClientRPCServer(
-			mode="json",
+			rpc_mode="json",
 			rpc_addr=("127.0.0.1", 1337),
             api_token=API_TOKEN,
             email=ETSY_EMAIL, password=ETSY_PASSWORD,
