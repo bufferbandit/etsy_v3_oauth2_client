@@ -13,15 +13,16 @@ from selenium.webdriver.support import expected_conditions as EC
 import os
 
 
-def find_element_wait(self, locator, by=By.ID, waiting_time=3, *findElementArgs, **findElementKwargs):
-    webdriver_wait = WebDriverWait(self.driver, waiting_time)
-    locator_tuple = (by, locator)
-    located = EC.visibility_of_element_located(locator_tuple,
-                            *findElementArgs, **findElementKwargs)
-    element = webdriver_wait.until(located)
-    return element
-
 class EtsyOAuth2ClientSelenium(EtsyOAuth2Client):
+
+    def find_element_wait(self, locator, by=By.ID, waiting_time=3, *findElementArgs, **findElementKwargs):
+        webdriver_wait = WebDriverWait(self.driver, waiting_time)
+        locator_tuple = (by, locator)
+        located = EC.visibility_of_element_located(locator_tuple,
+                                                   *findElementArgs, **findElementKwargs)
+        element = webdriver_wait.until(located)
+        return element
+
     def __init__(self, api_token, email, password, host="localhost", port=5000,
                  auto_close_browser=True, auto_refresh_token=False,
                  verbose=True, auto_start_auth=True, scopes=None,
@@ -29,8 +30,10 @@ class EtsyOAuth2ClientSelenium(EtsyOAuth2Client):
                  reference_file_path="./api_reference.json",
                  driver=None):
 
-        if not driver: driver = driver = webdriver.Chrome(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
+        if not driver:
+            driver = webdriver.Chrome(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
         self.driver = driver
+        self.driver.find_element_wait = partial(self.find_element_wait, self.driver)
         self.email = email
         self.password = password
         super().__init__(api_token, host, port, auto_close_browser,
@@ -60,7 +63,6 @@ class EtsyOAuth2ClientSelenium(EtsyOAuth2Client):
 if __name__ == "__main__":
     driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()),
                                options=webdriver.FirefoxOptions().headless)
-    driver.find_element_wait = partial(find_element_wait, driver)
     try:
 
         AUTO_CLOSE_BROWSER = True
