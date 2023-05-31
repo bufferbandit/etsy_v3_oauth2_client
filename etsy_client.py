@@ -38,6 +38,8 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 
 		if register_reference_function:
 			self.register_reference_function = register_reference_function
+		else:
+			self.register_reference_function = lambda *args, **kwargs : ...
 		self.process_callback_url = process_callback_url
 		self.api_reference_json_file = open(
 			reference_file_path, encoding="utf-8")
@@ -130,10 +132,6 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 		function = locals()[function_name]
 		self.register_reference_function(function)
 		return function, function_name
-
-	def register_reference_function(self, function):
-		pass
-
 
 
 	def get_api_routes(self):
