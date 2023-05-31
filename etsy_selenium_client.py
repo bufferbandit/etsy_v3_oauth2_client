@@ -15,6 +15,7 @@ import os
 
 class EtsyOAuth2ClientSelenium(EtsyOAuth2Client):
 
+    @staticmethod
     def find_element_wait(self, locator, by=By.ID, waiting_time=3, *findElementArgs, **findElementKwargs):
         webdriver_wait = WebDriverWait(self.driver, waiting_time)
         locator_tuple = (by, locator)
