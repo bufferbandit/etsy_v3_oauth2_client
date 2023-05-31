@@ -34,6 +34,7 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 	             access_token=None, refresh_token=None, expiry=None,
 	             reference_file_path="./api_reference.json",
 				 register_reference_function=None,
+				 prefix="",
 				 process_callback_url=webbrowser.open):
 
 
@@ -55,6 +56,7 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 		self.host = host
 		self.port = port
 		self.scopes = scopes
+		self.prefix = prefix
 
 		self.refresh_token_timer = None
 		self.auto_refresh_token = auto_refresh_token
@@ -93,7 +95,7 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 			refresh_save=None)
 
 
-	def reference_opperation_to_function(self, method_obj, func="None #", prefix="from_api_reference_", **kwargs):
+	def reference_opperation_to_function(self, method_obj,prefix, func="None #", **kwargs):
 		if isinstance(func, (types.FunctionType, types.MethodType)): func = func.__name__
 		# function string
 		function_str = "def {prefix}{operationId}({args_str}{self}):return {func}(**locals())"
@@ -138,7 +140,8 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 						method_obj=method_obj,
 						func="self.make_request",
 						path=path,
-						method=method)
+						method=method,
+						prefix=self.prefix)
 				if self.register_reference_function:
 					self.register_reference_function(function)
 				yield function_name, path, function, list(
