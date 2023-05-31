@@ -16,8 +16,8 @@ import os
 class EtsyOAuth2ClientSelenium(EtsyOAuth2Client):
 
     @staticmethod
-    def find_element_wait(self, locator, by=By.ID, waiting_time=3, *findElementArgs, **findElementKwargs):
-        webdriver_wait = WebDriverWait(self.driver, waiting_time)
+    def find_element_wait(driver, locator, by=By.ID, waiting_time=3, *findElementArgs, **findElementKwargs):
+        webdriver_wait = WebDriverWait(driver, waiting_time)
         locator_tuple = (by, locator)
         located = EC.visibility_of_element_located(locator_tuple,
                                                    *findElementArgs, **findElementKwargs)
@@ -30,7 +30,7 @@ class EtsyOAuth2ClientSelenium(EtsyOAuth2Client):
         if not driver:
             driver = webdriver.Chrome(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
         self.driver = driver
-        self.driver.find_element_wait = partial(self.find_element_wait, self)
+        self.driver.find_element_wait = partial(self.find_element_wait, self.driver)
         self.email = email
         self.password = password
         super().__init__(*args, **kwargs)
