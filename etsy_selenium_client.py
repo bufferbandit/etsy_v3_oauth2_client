@@ -7,7 +7,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.core.utils import ChromeType
 from webdriver_manager.firefox import GeckoDriverManager
-from lib.etsy_v3_oauth2_client.etsy_client import EtsyOAuth2Client
+from etsy_client import EtsyOAuth2Client
 from selenium.webdriver.support import expected_conditions as EC
 
 import os
