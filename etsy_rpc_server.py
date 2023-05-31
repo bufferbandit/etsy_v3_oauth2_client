@@ -27,7 +27,7 @@ class EtsyClientRPCServer(EtsyOAuth2ClientSelenium):
 			register_reference_function=self.xmlrpc_server.register_function,
 			*args, **kwargs
 		)
-		# TODO: Run this threadedly perhapse
+		# TODO: Run this on a thread perhapse
 		self.xmlrpc_server.serve_forever()
 
 
