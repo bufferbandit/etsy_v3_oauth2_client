@@ -34,11 +34,12 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 	             access_token=None, refresh_token=None, expiry=None,
 	             reference_file_path="./api_reference.json",
 				 register_reference_function=None,
-				 prefix="",
+				 prefix="", after_oauth_tokens_received_callback=None,
 				 process_callback_url=webbrowser.open):
 
 
 		self.register_reference_function = register_reference_function
+		self.after_oauth_tokens_received_callback = after_oauth_tokens_received_callback
 		self.process_callback_url = process_callback_url
 		self.api_reference_json_file = open(
 			reference_file_path, encoding="utf-8")
@@ -85,6 +86,12 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 			self.refresh_token = "None.None.None"
 			# self.expiry = None
 			self.expiry = datetime.datetime.utcnow() + datetime.timedelta(microseconds=1)
+
+
+		self.api_routes = self.get_api_routes()
+		if self.register_reference_function:
+			for function_name, _, function, *_ in self.api_routes:
+				self.register_reference_function(function)
 
 		# Initialize base class variables
 		super().__init__(
@@ -133,6 +140,7 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 		return function, function_name
 
 
+	# TODO: This should be renamed more clearly
 	def get_api_routes(self):
 		for path, path_obj in self.api_reference_json["paths"].items():
 			for method, method_obj in path_obj.items():
@@ -142,11 +150,10 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 						path=path,
 						method=method,
 						prefix=self.prefix)
-				if self.register_reference_function:
-					self.register_reference_function(function)
 				yield function_name, path, function, list(
 					set(inspect.signature(function).parameters) - set(["path", "method", "self"])), method
 
+	# Maybe this should be a classmethod?
 	def make_request(*args, **kwargs):
 		path = kwargs.get("path", None)
 		method = kwargs.get("method", None)
@@ -285,6 +292,8 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 	def get_access_token(self):
 		self.open_oauth_request()
 		tokens = self.receive_oauth_callback()
+		if self.after_oauth_tokens_received_callback:
+			self.after_oauth_tokens_received_callback(tokens)
 		self.access_token = tokens["access_token"]
 		self.refresh_token = tokens["refresh_token"]
 		self.expires_in = tokens["expires_in"]
