@@ -24,16 +24,21 @@ class EtsyOAuth2ClientSelenium(EtsyOAuth2Client):
         element = webdriver_wait.until(located)
         return element
 
-    def __init__(self, email, password, driver=None,process_callback_url=None, *args, **kwargs):
-        if not process_callback_url:
-            kwargs["process_callback_url"] = self.login_to_etsy
+    def __init__(self, email, password, driver=None,process_callback_url=None,after_oauth_tokens_received_callback=None, *args, **kwargs):
         if not driver:
             driver = webdriver.Chrome(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
+        if not process_callback_url:
+            process_callback_url = self.login_to_etsy
+        if not after_oauth_tokens_received_callback:
+            after_oauth_tokens_received_callback = lambda *largs, **lkwargs: self.driver.quit()
         self.driver = driver
         self.driver.find_element_wait = partial(self.find_element_wait, self.driver)
         self.email = email
         self.password = password
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            process_callback_url=process_callback_url,
+            after_oauth_tokens_received_callback=after_oauth_tokens_received_callback,
+            *args, **kwargs)
 
     def login_to_etsy(self, url):
         self.driver.get(url)
@@ -54,8 +59,11 @@ class EtsyOAuth2ClientSelenium(EtsyOAuth2Client):
 
 
 if __name__ == "__main__":
-    driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()),
-                               options=webdriver.FirefoxOptions().headless)
+    options = webdriver.FirefoxOptions()
+    options.add_argument("--headless")
+    service = FirefoxService(GeckoDriverManager().install())
+    driver = webdriver.Firefox(service=service, options=options)
+
     try:
 
         AUTO_CLOSE_BROWSER = True
