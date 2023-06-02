@@ -86,7 +86,9 @@ if __name__ == "__main__":
 	ETSY_EMAIL = get_input("ADD YOUR EMAIL: ")
 	ETSY_PASSWORD = get_input("ADD YOUR PASSWORD: ")
 	RPC_ADDRESS_HOST = get_input("RPC ADDRESS HOST: ") or "localhost"
-	RPC_ADDRESS_PORT = get_input("RPC ADDRESS PORT: ") or 1337
+	RPC_ADDRESS_PORT = int(get_input("RPC ADDRESS PORT: ")) or 1337
+	RPC_SERVER_MODE = get_input("RPC SERVER MODE: ") or "json"
+
 
 
 
@@ -98,7 +100,7 @@ if __name__ == "__main__":
 	try:
 
 		client = EtsyClientRPCServer(
-			rpc_mode="json",
+			rpc_mode=RPC_SERVER_MODE,
 			rpc_addr=(RPC_ADDRESS_HOST, int(RPC_ADDRESS_PORT)),
 			api_token=API_TOKEN,
 			email=ETSY_EMAIL, password=ETSY_PASSWORD,
