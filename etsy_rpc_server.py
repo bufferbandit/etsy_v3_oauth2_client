@@ -1,5 +1,7 @@
+import sys
 from functools import partial
 
+from pysc import event_stop
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.service import Service as FirefoxService
@@ -14,6 +16,20 @@ import os
 
 from etsy_selenium_client import EtsyOAuth2ClientSelenium
 
+
+
+def get_input(prompt):
+    # Check if the input is provided as a command line argument
+    if len(sys.argv) > 1:
+        return sys.argv.pop(1)
+
+    # Check if the input is available in the environment variables
+    env_variable = os.getenv(prompt.upper())
+    if env_variable:
+        return env_variable
+
+    # If the input is still not available, ask for user input
+    return input(prompt)
 
 
 class EtsyClientRPCServer(EtsyOAuth2ClientSelenium):
@@ -37,32 +53,47 @@ class EtsyClientRPCServer(EtsyOAuth2ClientSelenium):
 			*args, **kwargs
 		)
 
+		@event_stop
+		def stop():
+			self.rpc_server.server_close()
+			if self.driver:
+				self.driver.quit()
+
+
 		# TODO: Run this on a thread perhapse
 		# TODO: It would be nice if this would
 		#  	be contained in a context manager
-		if verbose: print("Starting rpc server")
-		self.rpc_server.serve_forever()
+		try:
+			if verbose: print("Starting rpc server at ", *rpc_addr)
+			self.rpc_server.serve_forever()
+		finally:
+			if verbose: print("Closed rpc server at ", *rpc_addr)
+			self.rpc_server.server_close()
 
 
 
 if __name__ == "__main__":
+
+	HEADLESS = True
+	AUTO_CLOSE_BROWSER = True
+	AUTO_REFRESH_TOKEN = True
+	AUTO_START_AUTH = True
+	VERBOSE = True
+	HOST = "localhost"
+	PORT = 5000
+
+	API_TOKEN = get_input("ADD YOUR API TOKEN: ")
+	ETSY_EMAIL = get_input("ADD YOUR EMAIL: ")
+	ETSY_PASSWORD = get_input("ADD YOUR PASSWORD: ")
+
+
+
 	options = webdriver.FirefoxOptions()
-	options.add_argument("--headless")
+	if HEADLESS: options.add_argument("--headless")
 	service = FirefoxService(GeckoDriverManager().install())
 	driver = webdriver.Firefox(service=service, options=options)
 
 	try:
-
-		AUTO_CLOSE_BROWSER = True
-		AUTO_REFRESH_TOKEN = True
-		AUTO_START_AUTH = True
-		VERBOSE = True
-		HOST = "localhost"
-		PORT = 5000
-
-		API_TOKEN = input("ADD YOUR API TOKEN ")
-		ETSY_EMAIL = input("ADD YOUR EMAIL ")
-		ETSY_PASSWORD = input("ADD YOUR PASSWORD ")
 
 		client = EtsyClientRPCServer(
 			rpc_mode="json",
