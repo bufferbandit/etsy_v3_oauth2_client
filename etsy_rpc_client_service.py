@@ -2,23 +2,35 @@ import os
 import sys
 import time
 import pysc
-# from xmlrpc.client import ServerProxy as RpcClient
-from jsonrpclib import Server as RpcClient
 
 
+
+
+MODE = "json"
+
+if MODE == "json":
+	from jsonrpclib import Server as RpcClient
+elif MODE == "xml":
+	from xmlrpc.client import ServerProxy as RpcClient
 
 
 class EtsyRPCClient(RpcClient):
 
 	is_launching_client = None
 	def __init__(self, api_token, email, password,
-				 rpc_server_url="http://localhost:1337",
+				 rpc_address_host="localhost",
+				 rpc_address_port=1337,
+				 mode="json",
 				 service_name="python_etsy_rpc_service",
 				 launching_client_connect_timeout=5,
 				 server_script_path=os.path.join(os.path.dirname(__file__), "etsy_rpc_server.py"),
 				 *args, **kwargs):
 
-		self.rpc_server_url = rpc_server_url
+
+		self.mode = mode
+		self.rpc_address_host = rpc_address_host
+		self.rpc_address_port = rpc_address_port
+		self.rpc_server_url = "http://" + rpc_address_host + ":" + str(rpc_address_port)
 		self.api_token = api_token
 		self.email = email
 		self.password = password
@@ -49,7 +61,8 @@ class EtsyRPCClient(RpcClient):
 			pysc.create(
 				service_name=self.service_name,
 				cmd=[sys.executable, self.server_script_path,
-					 self.api_token, self.email, self.password]
+					 self.api_token, self.email, self.password,
+					 self.rpc_address_host, str(self.rpc_address_port), self.mode]
 			)
 			pysc.start(self.service_name)
 			self.is_launching_client = True
@@ -66,7 +79,10 @@ if __name__ == "__main__":
 	ETSY_EMAIL = input("ADD YOUR EMAIL: ")
 	ETSY_PASSWORD = input("ADD YOUR PASSWORD: ")
 
-	client = EtsyRPCClient(API_TOKEN, ETSY_EMAIL, ETSY_PASSWORD)
+
+	client = EtsyRPCClient(API_TOKEN, ETSY_EMAIL, ETSY_PASSWORD,
+						   "localhost",1337, MODE,
+						   launching_client_connect_timeout=20)
 	for x in range(30):
 		res = client.ping()
 		print(res)
