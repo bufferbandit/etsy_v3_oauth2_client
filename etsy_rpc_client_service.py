@@ -4,24 +4,18 @@ import time
 import pysc
 
 
+from jsonrpclib import Server as JSONRpcClient
+from xmlrpc.client import ServerProxy as XMLRpcClient
 
 
-MODE = "json"
-
-if MODE == "json":
-	from jsonrpclib import Server as RpcClient
-elif MODE == "xml":
-	from xmlrpc.client import ServerProxy as RpcClient
-
-
-class EtsyRPCClient(RpcClient):
+class EtsyRPCClient:
 
 	is_launching_client = None
 	def __init__(self, api_token, email, password,
 				 rpc_address_host="localhost",
 				 rpc_address_port=1337,
 				 mode="json",
-				 service_name="python_etsy_rpc_service",
+				 service_name="Python etsy api service",
 				 launching_client_connect_timeout=5,
 				 server_script_path=os.path.join(os.path.dirname(__file__), "etsy_rpc_server.py"),
 				 *args, **kwargs):
@@ -65,22 +59,37 @@ class EtsyRPCClient(RpcClient):
 					 self.rpc_address_host, str(self.rpc_address_port), self.mode]
 			)
 			pysc.start(self.service_name)
+			print("Service started")
 			self.is_launching_client = True
 		except OSError:
 			self.is_launching_client = False
 			print("Service probably already exists, skipping...")
 
 
+class EtsyRPCClientXML(EtsyRPCClient, XMLRpcClient):
+	pass
+
+class EtsyRPCClientJSON(EtsyRPCClient, JSONRpcClient):
+	pass
+
 
 
 if __name__ == "__main__":
+
+	MODE = "json"
+
+	if MODE == "json":
+		Client = EtsyRPCClientJSON
+
+	elif MODE == "xml":
+		Client = EtsyRPCClientXML
 
 	API_TOKEN = input("ADD YOUR API TOKEN: ")
 	ETSY_EMAIL = input("ADD YOUR EMAIL: ")
 	ETSY_PASSWORD = input("ADD YOUR PASSWORD: ")
 
 
-	client = EtsyRPCClient(API_TOKEN, ETSY_EMAIL, ETSY_PASSWORD,
+	client = Client(API_TOKEN, ETSY_EMAIL, ETSY_PASSWORD,
 						   "localhost",1337, MODE,
 						   launching_client_connect_timeout=20)
 	for x in range(30):
