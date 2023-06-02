@@ -14,6 +14,7 @@ class EtsyRPCClient(RpcClient):
 	def __init__(self, api_token, email, password,
 				 rpc_server_url="http://localhost:1337",
 				 service_name="python_etsy_rpc_service",
+				 launching_client_connect_timeout=5,
 				 server_script_path=os.path.join(os.path.dirname(__file__), "etsy_rpc_server.py"),
 				 *args, **kwargs):
 
@@ -22,12 +23,14 @@ class EtsyRPCClient(RpcClient):
 		self.email = email
 		self.password = password
 		self.service_name = service_name
+		self.launching_client_connect_timeout = launching_client_connect_timeout
 		self.server_script_path = server_script_path
 		self._args = args
 		self._kwargs = kwargs
 		self.start_service()
 		self.get_connection()
-		time.sleep(1)
+		if self.is_launching_client:
+			time.sleep(launching_client_connect_timeout)
 
 
 	def get_connection(self, timeout=5):
