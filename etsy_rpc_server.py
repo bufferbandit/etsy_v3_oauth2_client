@@ -1,118 +1,103 @@
-import sys
-from functools import partial
-
-from pysc import event_stop
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.firefox.service import Service as FirefoxService
-from selenium.webdriver.support.wait import WebDriverWait
-from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.core.utils import ChromeType
-from webdriver_manager.firefox import GeckoDriverManager
-from etsy_client import EtsyOAuth2Client
-from selenium.webdriver.support import expected_conditions as EC
-
 import os
-
-from etsy_selenium_client import EtsyOAuth2ClientSelenium
-
-
-
-def get_input(prompt):
-    # Check if the input is provided as a command line argument
-    if len(sys.argv) > 1:
-        return sys.argv.pop(1)
-
-    # Check if the input is available in the environment variables
-    env_variable = os.getenv(prompt.upper())
-    if env_variable:
-        return env_variable
-
-    # If the input is still not available, ask for user input
-    return input(prompt)
+import sys
+import time
+import pysc
 
 
-class EtsyClientRPCServer(EtsyOAuth2ClientSelenium):
-	def __init__(self, rpc_mode="json", rpc_addr=None, rpc_server=None,verbose=True, *args, **kwargs):
-		if rpc_server:
-			self.rpc_server = rpc_server
-		else:
-			if rpc_mode == "xml":
-				if verbose: print("Selected xml rpc server")
-				from xmlrpc.server import SimpleXMLRPCServer
-				self.rpc_server = SimpleXMLRPCServer(rpc_addr)
-			elif rpc_mode == "json":
-				if verbose: print("Selected json rpc server")
-				from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer
-				self.rpc_server = SimpleJSONRPCServer(rpc_addr)
+from jsonrpclib import Server as JSONRpcClient
+from xmlrpc.client import ServerProxy as XMLRpcClient
 
 
-		super().__init__(
-			register_reference_function=self.rpc_server.register_function,
-			prefix="", verbose=verbose,
-			*args, **kwargs
-		)
+class EtsyRPCClient:
 
-		@event_stop
-		def stop():
-			self.rpc_server.server_close()
-			if self.driver:
-				self.driver.quit()
+	is_launching_client = None
+	def __init__(self, api_token, email, password,
+				 rpc_address_host="localhost",
+				 rpc_address_port=1337,
+				 mode="json",
+				 service_name="Python etsy api service",
+				 launching_client_connect_timeout=5,
+				 server_script_path=os.path.join(os.path.dirname(__file__), "etsy_rpc_server.py"),
+				 *args, **kwargs):
 
 
-		# TODO: Run this on a thread perhapse
-		# TODO: It would be nice if this would
-		#  	be contained in a context manager
+		self.mode = mode
+		self.rpc_address_host = rpc_address_host
+		self.rpc_address_port = rpc_address_port
+		self.rpc_server_url = "http://" + rpc_address_host + ":" + str(rpc_address_port)
+		self.api_token = api_token
+		self.email = email
+		self.password = password
+		self.service_name = service_name
+		self.launching_client_connect_timeout = launching_client_connect_timeout
+		self.server_script_path = server_script_path
+		self._args = args
+		self._kwargs = kwargs
+		self.start_service()
+		self.get_connection()
+		if self.is_launching_client:
+			time.sleep(launching_client_connect_timeout)
+
+
+	def get_connection(self, timeout=5):
+		while 1:
+			time.sleep(timeout)
+			try:
+				super().__init__(uri=self.rpc_server_url, *self._args, **self._kwargs)
+				print("Connected to rpc server")
+				break
+			except ConnectionRefusedError:
+				print("Could not connect to rpc server yet... Sleeping ", timeout)
+				continue
+
+	def start_service(self):
 		try:
-			if verbose: print("Starting rpc server at ", *rpc_addr)
-			self.rpc_server.serve_forever()
-		finally:
-			if verbose: print("Closed rpc server at ", *rpc_addr)
-			self.rpc_server.server_close()
+			pysc.create(
+				service_name=self.service_name,
+				cmd=[sys.executable, self.server_script_path,
+					 self.api_token, self.email, self.password,
+					 self.rpc_address_host, str(self.rpc_address_port), self.mode]
+			)
+			pysc.start(self.service_name)
+			self.is_launching_client = True
+		except OSError:
+			self.is_launching_client = False
+			print("Service probably already exists, skipping...")
+
+
+class EtsyRPCClientXML(EtsyRPCClient, XMLRpcClient):
+	pass
+
+class EtsyRPCClientJSON(EtsyRPCClient, JSONRpcClient):
+	pass
 
 
 
 if __name__ == "__main__":
 
-	HEADLESS = True
-	AUTO_CLOSE_BROWSER = True
-	AUTO_REFRESH_TOKEN = True
-	AUTO_START_AUTH = True
-	VERBOSE = True
-	HOST = "localhost"
-	PORT = 5000
+	MODE = "json"
 
-	API_TOKEN = get_input("ADD YOUR API TOKEN: ")
-	ETSY_EMAIL = get_input("ADD YOUR EMAIL: ")
-	ETSY_PASSWORD = get_input("ADD YOUR PASSWORD: ")
-	RPC_ADDRESS_HOST = get_input("RPC ADDRESS HOST: ") or "localhost"
-	RPC_ADDRESS_PORT = int(get_input("RPC ADDRESS PORT: ")) or 1337
-	RPC_SERVER_MODE = get_input("RPC SERVER MODE: ") or "json"
+	if MODE == "json":
+		Client = EtsyRPCClientJSON
+
+	elif MODE == "xml":
+		Client = EtsyRPCClientXML
+
+	API_TOKEN = input("ADD YOUR API TOKEN: ")
+	ETSY_EMAIL = input("ADD YOUR EMAIL: ")
+	ETSY_PASSWORD = input("ADD YOUR PASSWORD: ")
 
 
+	client = Client(API_TOKEN, ETSY_EMAIL, ETSY_PASSWORD,
+						   "localhost",1337, MODE,
+						   launching_client_connect_timeout=20)
+	for x in range(30):
+		res = client.ping()
+		print(res)
+		time.sleep(3)
 
 
-	options = webdriver.FirefoxOptions()
-	if HEADLESS: options.add_argument("--headless")
-	service = FirefoxService(GeckoDriverManager().install())
-	driver = webdriver.Firefox(service=service, options=options)
-
-	try:
-
-		client = EtsyClientRPCServer(
-			rpc_mode=RPC_SERVER_MODE,
-			rpc_addr=(RPC_ADDRESS_HOST, int(RPC_ADDRESS_PORT)),
-			api_token=API_TOKEN,
-			email=ETSY_EMAIL, password=ETSY_PASSWORD,
-			host=HOST, port=PORT,
-			auto_close_browser=AUTO_CLOSE_BROWSER,
-			auto_refresh_token=AUTO_REFRESH_TOKEN,
-			verbose=VERBOSE, auto_start_auth=AUTO_START_AUTH,
-			reference_file_path=os.path.join(
-				os.path.dirname(__file__), "./", "api_reference.json"),
-			driver=driver
-		)
-		print(client.ping())
-
-
-	finally:driver.quit()
+	# finally:
+	# 	# pysc.stop(service_name)
+	# 	# pysc.delete(service_name)
+	# 	print("Closed and deleted ", service_name)
