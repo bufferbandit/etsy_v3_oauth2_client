@@ -39,8 +39,8 @@ class EtsyRPCBaseClient:
 		self.server_script_path = server_script_path
 		self._args = args
 		self._kwargs = kwargs
-		self.try_start_or_install_service()
 		self.try_stop_or_remove_service()
+		self.try_start_or_install_service()
 		self.get_connection()
 		if self.is_launching_client:
 			time.sleep(launching_client_connect_timeout)
