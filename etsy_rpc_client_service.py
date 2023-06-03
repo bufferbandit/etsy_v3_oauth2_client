@@ -97,11 +97,11 @@ class EtsyRPCBaseClient:
 
 
 
-class EtsyRPCBaseClientXML(EtsyRPCBaseClient, XMLRpcClient):
+class EtsyRPCClientXML(EtsyRPCBaseClient, XMLRpcClient):
 	pass
 
 
-class EtsyRPCBaseClientJSON(EtsyRPCBaseClient, JSONRpcClient):
+class EtsyRPCClientJSON(EtsyRPCBaseClient, JSONRpcClient):
 	pass
 
 
@@ -110,10 +110,10 @@ if __name__ == "__main__":
 	MODE = "json"
 
 	if MODE == "json":
-		Client = EtsyRPCBaseClientJSON
+		Client = EtsyRPCClientJSON
 
 	elif MODE == "xml":
-		Client = EtsyRPCBaseClientXML
+		Client = EtsyRPCClientXML
 
 	API_TOKEN = input("ADD YOUR API TOKEN: ")
 	ETSY_EMAIL = input("ADD YOUR EMAIL: ")
