@@ -17,8 +17,16 @@ class EtsyRPCBaseClient:
 				 service_name="Python etsy api service",
 				 launching_client_connect_timeout=5,
 				 server_script_path=os.path.join(os.path.dirname(__file__), "etsy_rpc_server.py"),
+				 try_install_service=True,
+				 try_start_service=True,
+				 try_stop_existing_service=False,
+				 try_remove_existing_service=False,
 				 *args, **kwargs):
 
+		self.try_install_service = try_install_service
+		self.try_start_service = try_start_service
+		self.try_stop_existing_service = try_stop_existing_service
+		self.try_remove_existing_service = try_remove_existing_service
 		self.mode = mode
 		self.rpc_address_host = rpc_address_host
 		self.rpc_address_port = rpc_address_port
@@ -31,7 +39,8 @@ class EtsyRPCBaseClient:
 		self.server_script_path = server_script_path
 		self._args = args
 		self._kwargs = kwargs
-		self.start_service()
+		self.try_start_or_install_service()
+		self.try_stop_or_remove_service()
 		self.get_connection()
 		if self.is_launching_client:
 			time.sleep(launching_client_connect_timeout)
@@ -47,20 +56,45 @@ class EtsyRPCBaseClient:
 				print("Could not connect to rpc server yet... Sleeping ", timeout)
 				continue
 
-	def start_service(self):
-		try:
-			pysc.create(
-				service_name=self.service_name,
-				cmd=[sys.executable, self.server_script_path,
-					 self.api_token, self.email, self.password,
-					 self.rpc_address_host, str(self.rpc_address_port), self.mode]
-			)
-			pysc.start(self.service_name)
-			print("Service started")
-			self.is_launching_client = True
-		except OSError:
-			self.is_launching_client = False
-			print("Service probably already exists, skipping...")
+	def try_start_or_install_service(self):
+		if self.try_install_service:
+			try:
+				pysc.create(
+					service_name=self.service_name,
+					cmd=[sys.executable, self.server_script_path,
+						 self.api_token, self.email, self.password,
+						 self.rpc_address_host, str(self.rpc_address_port), self.mode]
+				)
+				self.is_launching_client = True
+				print("Service created")
+			except OSError:
+				self.is_launching_client = False
+				print("Service probably already exists, skipping...")
+
+		if self.try_start_service:
+			try:
+				pysc.start(self.service_name)
+				print("Service started")
+			except OSError:
+				print("Could not start service")
+
+	def try_stop_or_remove_service(self):
+		if self.try_stop_existing_service:
+			try:
+				pysc.stop(self.service_name)
+				print("Service stopped")
+			except OSError:
+				print("Could not stop service")
+
+		if self.try_remove_existing_service:
+			try:
+				pysc.delete(self.service_name)
+				print("Service deleted")
+			except OSError:
+				print("Could not delete service")
+
+
+
 
 
 class EtsyRPCBaseClientXML(EtsyRPCBaseClient, XMLRpcClient):
@@ -92,8 +126,3 @@ if __name__ == "__main__":
 		res = client.ping()
 		print(res)
 		time.sleep(3)
-
-# finally:
-# 	# pysc.stop(service_name)
-# 	# pysc.delete(service_name)
-# 	print("Closed and deleted ", service_name)
