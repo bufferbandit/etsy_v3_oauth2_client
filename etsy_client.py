@@ -306,7 +306,7 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 
 	def start_auto_refreshing_token(self):
 		if self.refresh_token_timer: self.refresh_token_timer.cancel()
-		self.refresh_token_timer = threading.Timer(int(self.expires_in), function=self.get_refresh_token)
+		self.refresh_token_timer = threading.Timer(int(self.expires_in)-30, function=self.get_refresh_token)
 		self.refresh_token_timer.start()
 		if self.verbose: print("New timer started with interval", self.refresh_token_timer.interval)
 
@@ -324,6 +324,9 @@ class EtsyOAuth2Client(etsyv3.etsy_api.EtsyAPI):
 		self.refresh_token = tokens["refresh_token"]
 		self.expires_in = tokens["expires_in"]
 		self.expiry = datetime.datetime.utcnow() + datetime.timedelta(seconds=self.expires_in)
+
+		if hasattr(self, "session"):
+			self.session.headers["Authorization"] = "Bearer " + self.token
 
 		if self.verbose: print("Succesfully refreshed token", self.access_token, self.refresh_token, self.expires_in)
 		if self.auto_refresh_token:
